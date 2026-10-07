@@ -1,0 +1,72 @@
+{
+  "name": "cetiao-hub",
+  "version": "1.0.1",
+  "description": "CETIAO Hub - Gestão Escolar e Documental (offline-first desktop app)",
+  "main": "main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "electron:dev": "concurrently \"npm run dev\" \"wait-on tcp:5173 && electron .\"",
+    "electron:build": "npm run build && electron-builder"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9",
+    "events": "^3.3.0",
+    "framer-motion": "^14.0.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.1",
+    "lucide-react": "^0.306.0",
+    "pdf-lib": "^1.17.1",
+    "pouchdb": "^8.0.1",
+    "pouchdb-find": "^8.0.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.14.2",
+    "react-toastify": "^9.1.3",
+    "recharts": "^2.9.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
+    "electron": "^28.0.0",
+    "electron-builder": "^26.15.3",
+    "sass": "^1.72.0",
+    "vite": "^5.0.0",
+    "wait-on": "^7.2.0"
+  },
+  "allowScripts": {
+    "electron@28.3.3": true,
+    "esbuild@0.21.5": true,
+    "core-js@3.50.0": true,
+    "@parcel/watcher@2.6.0": true,
+    "leveldown@5.6.0": true,
+    "electron-winstaller@5.4.0": true
+  },
+  "build": {
+    "appId": "com.cetiao.hub",
+    "productName": "CETIAO Hub",
+    "directories": {
+      "output": "release"
+    },
+    "publish": [{
+      "provider": "github",
+      "owner": "ronieberton63-crypto",
+      "repo": "CETIAOHUB"
+    }],
+    "files": [
+      "dist/**/*",
+      "main.cjs",
+      "preload.cjs",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}
