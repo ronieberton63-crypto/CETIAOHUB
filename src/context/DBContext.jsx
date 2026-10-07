@@ -37,7 +37,8 @@ export const DBProvider = ({ children }) => {
     const localDb = new PouchDB(LOCAL_DB_NAME);
     setDb(localDb);
 
-    const REMOTE_DB_URL = `http://${serverIp}:5984/cetiao_hub_remote`;
+    // URL com as credenciais do CouchDB configuradas no servidor
+    const REMOTE_DB_URL = `http://CETIAO:CETIAOHUB@${serverIp}:5984/cetiao_hub_remote`;
     const remoteDb = new PouchDB(REMOTE_DB_URL);
     
     // Live synchronization with retry
