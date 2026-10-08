@@ -2,7 +2,7 @@ import React, { useState, useContext, useEffect } from 'react';
 import { DBContext } from '../context/DBContext.jsx';
 import { imagesToPdf, textToPdf, mergePdfs, downloadBlob } from '../utils/pdfUtils.js';
 import { toast } from 'react-toastify';
-import { Image as ImageIcon, FileText, Combine, Download, History, Trash2, ArrowUp, ArrowDown, X, CheckSquare } from 'lucide-react';
+import { Image as ImageIcon, FileText, Combine, Download, History, Trash2, ArrowUp, ArrowDown, X, CheckSquare, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const PDFHub = () => {
@@ -235,7 +235,12 @@ const PDFHub = () => {
               type="file"
               accept="image/jpeg,image/png"
               multiple
-              onChange={e => setImageFiles(prev => [...prev, ...Array.from(e.target.files)])}
+              onChange={e => {
+                if (e.target.files) {
+                  setImageFiles(prev => [...prev, ...Array.from(e.target.files)]);
+                }
+                e.target.value = null;
+              }}
               style={{ display: 'none' }}
             />
           </div>
@@ -313,7 +318,12 @@ const PDFHub = () => {
               type="file"
               accept="application/pdf"
               multiple
-              onChange={e => setPdfFiles(prev => [...prev, ...Array.from(e.target.files)])}
+              onChange={e => {
+                if (e.target.files) {
+                  setPdfFiles(prev => [...prev, ...Array.from(e.target.files)]);
+                }
+                e.target.value = null;
+              }}
               style={{ display: 'none' }}
             />
           </div>

@@ -36,6 +36,9 @@ export async function imagesToPdf(imageFiles, compress = false) {
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d');
+      // Fill with white so PNGs with transparency don't become black
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, width, height);
       ctx.drawImage(img, 0, 0, width, height);
       // Force JPEG compression at 0.7 quality
       dataUrl = canvas.toDataURL('image/jpeg', 0.7);
