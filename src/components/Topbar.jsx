@@ -167,6 +167,29 @@ const Topbar = () => {
                     autoFocus
                   />
                 </div>
+                
+                <div style={{ marginBottom: '1.5rem', padding: '1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <h4 style={{ color: '#f8fafc', marginBottom: '0.5rem', fontSize: '0.9rem' }}>Atualizações do Sistema</h4>
+                  <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.75rem' }}>
+                    Verifique se há novas funcionalidades e melhorias disponíveis.
+                  </p>
+                  <button 
+                    type="button" 
+                    className="btn-primary" 
+                    style={{ width: '100%', justifyContent: 'center' }}
+                    onClick={() => {
+                      if (window.electronAPI) {
+                        window.electronAPI.checkUpdates();
+                        toast.info('Verificando atualizações...', { autoClose: 2000 });
+                      } else {
+                        toast.error('Indisponível no modo de desenvolvimento.');
+                      }
+                    }}
+                  >
+                    Verificar Atualizações
+                  </button>
+                </div>
+
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
                   <button type="button" className="btn-secondary" style={{ background: 'transparent', color: '#94a3b8' }} onClick={() => setShowSettings(false)}>
                     Cancelar

@@ -42,6 +42,9 @@ const App = () => {
           window.electronAPI.restartApp();
         }, 5000);
       });
+      window.electronAPI.onUpdateNotAvailable(() => {
+        toast.info('Você já está na versão mais recente.', { autoClose: 3000, toastId: 'update-not-avail' });
+      });
       window.electronAPI.onUpdateError((err) => {
         console.error('Update erro:', err);
       });

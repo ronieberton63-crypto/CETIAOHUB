@@ -5,14 +5,44 @@ import jsPDF from 'jspdf';
 /**
  * Convert an array of image File objects into a single PDF blob.
  * @param {File[]} imageFiles - Array of image files (JPG/PNG)
+ * @param {boolean} compress - Whether to compress the images to reduce file size
  * @returns {Promise<Blob>} PDF blob
  */
-export async function imagesToPdf(imageFiles) {
+export async function imagesToPdf(imageFiles, compress = false) {
   const doc = new jsPDF();
   for (let i = 0; i < imageFiles.length; i++) {
     const file = imageFiles[i];
-    const dataUrl = await readFileAsDataURL(file);
+    let dataUrl = await readFileAsDataURL(file);
     const img = await loadImage(dataUrl);
+
+    if (compress) {
+      const canvas = document.createElement('canvas');
+      const MAX_WIDTH = 1200;
+      const MAX_HEIGHT = 1600;
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > MAX_WIDTH) {
+          height *= MAX_WIDTH / width;
+          width = MAX_WIDTH;
+        }
+      } else {
+        if (height > MAX_HEIGHT) {
+          width *= MAX_HEIGHT / height;
+          height = MAX_HEIGHT;
+        }
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      // Force JPEG compression at 0.7 quality
+      dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+    }
+
+    const format = compress ? 'JPEG' : (file.type === 'image/png' ? 'PNG' : 'JPEG');
+
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const ratio = Math.min(pageWidth / img.width, pageHeight / img.height);
@@ -21,7 +51,6 @@ export async function imagesToPdf(imageFiles) {
     const x = (pageWidth - imgWidth) / 2;
     const y = (pageHeight - imgHeight) / 2;
     if (i > 0) doc.addPage();
-    const format = file.type === 'image/png' ? 'PNG' : 'JPEG';
     doc.addImage(dataUrl, format, x, y, imgWidth, imgHeight);
   }
   return doc.output('blob');

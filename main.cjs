@@ -48,12 +48,25 @@ autoUpdater.on('update-available', () => {
   if (win) win.webContents.send('update_available');
 });
 
+autoUpdater.on('update-not-available', () => {
+  if (win) win.webContents.send('update_not_available');
+});
+
 autoUpdater.on('update-downloaded', () => {
   if (win) win.webContents.send('update_downloaded');
 });
 
 autoUpdater.on('error', (err) => {
   if (win) win.webContents.send('update_error', err.message);
+});
+
+// IPC Main listener to check updates manually
+ipcMain.on('check_updates', () => {
+  if (app.isPackaged) {
+    autoUpdater.checkForUpdates();
+  } else {
+    if (win) win.webContents.send('update_not_available');
+  }
 });
 
 // IPC Main listener to restart app

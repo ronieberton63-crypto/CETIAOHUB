@@ -1,16 +1,9 @@
-// src/pages/PDFHub.jsx
 import React, { useState, useContext, useEffect } from 'react';
-import { toast } from 'react-toastify';
-import { imagesToPdf, textToPdf, mergePdfs, downloadBlob } from '../utils/pdfUtils.js';
 import { DBContext } from '../context/DBContext.jsx';
-import { Image, FileText, Combine, Download, History, Trash2, Clock } from 'lucide-react';
+import { imagesToPdf, textToPdf, mergePdfs, downloadBlob } from '../utils/pdfUtils.js';
+import { toast } from 'react-toastify';
+import { Image as ImageIcon, FileText, Combine, Download, History, Trash2, ArrowUp, ArrowDown, X, CheckSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const TOOL_LABELS = {
-  imagem_para_pdf: '🖼️ Imagem → PDF',
-  texto_para_pdf: '📝 Texto → PDF',
-  merge_pdf: '📎 Merge de PDFs',
-};
 
 const PDFHub = () => {
   const { db } = useContext(DBContext);
@@ -19,6 +12,7 @@ const PDFHub = () => {
   // ── Image to PDF state ──
   const [imageFiles, setImageFiles] = useState([]);
   const [imageDocName, setImageDocName] = useState('');
+  const [compressImages, setCompressImages] = useState(true);
 
   // ── Text to PDF state ──
   const [docTitle, setDocTitle] = useState('');
@@ -52,7 +46,6 @@ const PDFHub = () => {
     return () => changes.cancel();
   }, [db]);
 
-  // Save generated PDF to PouchDB as attachment so it can be re-downloaded
   const savePdfToHistory = async (blob, filename, tool) => {
     if (!db) return;
     try {
@@ -71,7 +64,6 @@ const PDFHub = () => {
         }
       };
       await db.put(doc);
-      // Also log usage for dashboard stats
       await db.post({ type: 'pdf_usage', tool, date: new Date().toISOString() });
     } catch (err) {
       console.error('Error saving to history:', err);
@@ -97,18 +89,39 @@ const PDFHub = () => {
   const handleDeleteHistory = async (item) => {
     try {
       await db.remove(item);
-      toast.info('Registro removido do histórico');
+      toast.info('Registro removido');
     } catch (err) {
       toast.error('Erro ao remover');
     }
   };
 
+  // ── Array Reorder Helpers ──
+  const moveUp = (array, setArray, index) => {
+    if (index === 0) return;
+    const newArr = [...array];
+    [newArr[index - 1], newArr[index]] = [newArr[index], newArr[index - 1]];
+    setArray(newArr);
+  };
+
+  const moveDown = (array, setArray, index) => {
+    if (index === array.length - 1) return;
+    const newArr = [...array];
+    [newArr[index + 1], newArr[index]] = [newArr[index], newArr[index + 1]];
+    setArray(newArr);
+  };
+
+  const removeFile = (array, setArray, index) => {
+    const newArr = [...array];
+    newArr.splice(index, 1);
+    setArray(newArr);
+  };
+
   // ── Handlers ──
   const handleImageToPdf = async () => {
-    if (imageFiles.length === 0) { toast.error('Selecione pelo menos uma imagem'); return; }
+    if (imageFiles.length === 0) { toast.error('Selecione imagens'); return; }
     try {
-      toast.info('Gerando PDF...');
-      const blob = await imagesToPdf(imageFiles);
+      toast.info('Gerando PDF... Aguarde.');
+      const blob = await imagesToPdf(imageFiles, compressImages);
       const baseName = imageDocName.trim() || `imagens-${Date.now()}`;
       const filename = baseName.replace(/[^a-zA-Z0-9À-ÿ\s\-_]/g, '') + '.pdf';
       downloadBlob(blob, filename);
@@ -163,14 +176,15 @@ const PDFHub = () => {
   };
 
   const formatSize = (bytes) => {
-    if (!bytes) return '';
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    if (!bytes) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   const tabs = [
-    { key: 'images', label: 'Imagem → PDF', icon: <Image size={16} /> },
+    { key: 'images', label: 'Imagens → PDF', icon: <ImageIcon size={16} /> },
     { key: 'text', label: 'Texto → PDF', icon: <FileText size={16} /> },
     { key: 'merge', label: 'Juntar PDFs', icon: <Combine size={16} /> },
     { key: 'history', label: `Histórico (${history.length})`, icon: <History size={16} /> },
@@ -180,7 +194,7 @@ const PDFHub = () => {
     <div>
       <h1 className="page-title">Hub de Documentos PDF</h1>
       <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '0.85rem' }}>
-        Todas as operações são processadas localmente. Nenhum arquivo é enviado para a internet.
+        Todas as operações são processadas localmente. Adicione arquivos de várias pastas e organize a ordem!
       </p>
 
       <div className="tabs">
@@ -196,54 +210,84 @@ const PDFHub = () => {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card">
           <h3 style={{ marginBottom: '0.75rem', color: 'var(--text-primary)' }}>Converter Imagens em PDF</h3>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
-            Selecione fotos (JPG/PNG) de documentos de alunos e gere um PDF único.
+            Selecione fotos (JPG/PNG) para gerar um PDF. Você pode clicar no botão várias vezes para pegar arquivos de pastas diferentes.
           </p>
-          <div style={{ marginBottom: '0.75rem' }}>
-            <label>Nome do Documento</label>
-            <input className="form-input" value={imageDocName} onChange={e => setImageDocName(e.target.value)} placeholder="Ex: Documentos do Aluno João Silva" />
+          
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <label>Nome do Documento</label>
+              <input className="form-input" value={imageDocName} onChange={e => setImageDocName(e.target.value)} placeholder="Ex: Documentos do Aluno João Silva" />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '1rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                <input type="checkbox" checked={compressImages} onChange={e => setCompressImages(e.target.checked)} style={{ width: 18, height: 18 }} />
+                Comprimir Imagens (Reduz o tamanho)
+              </label>
+            </div>
           </div>
-          <input
-            type="file"
-            accept="image/jpeg,image/png"
-            multiple
-            onChange={e => setImageFiles(Array.from(e.target.files))}
-            style={{ marginBottom: '0.75rem', color: 'var(--text-secondary)' }}
-          />
+
+          <div style={{ marginBottom: '1rem' }}>
+            <label htmlFor="image-upload" className="btn-secondary" style={{ display: 'inline-flex', cursor: 'pointer' }}>
+              <Plus size={16} /> Adicionar Imagens
+            </label>
+            <input
+              id="image-upload"
+              type="file"
+              accept="image/jpeg,image/png"
+              multiple
+              onChange={e => setImageFiles(prev => [...prev, ...Array.from(e.target.files)])}
+              style={{ display: 'none' }}
+            />
+          </div>
+
           {imageFiles.length > 0 && (
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
-              {imageFiles.length} imagem(ns) selecionada(s): {imageFiles.map(f => f.name).join(', ')}
-            </p>
+            <div style={{ marginBottom: '1rem', background: 'rgba(255,255,255,0.02)', padding: '0.5rem', borderRadius: 8 }}>
+              <h4 style={{ fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>{imageFiles.length} Imagem(ns) na fila:</h4>
+              {imageFiles.map((f, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.4rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{i + 1}. {f.name}</span>
+                  <div style={{ display: 'flex', gap: '0.25rem' }}>
+                    <button type="button" className="btn-secondary" style={{ padding: '0.2rem' }} onClick={() => moveUp(imageFiles, setImageFiles, i)} disabled={i === 0}><ArrowUp size={14}/></button>
+                    <button type="button" className="btn-secondary" style={{ padding: '0.2rem' }} onClick={() => moveDown(imageFiles, setImageFiles, i)} disabled={i === imageFiles.length - 1}><ArrowDown size={14}/></button>
+                    <button type="button" className="btn-danger" style={{ padding: '0.2rem' }} onClick={() => removeFile(imageFiles, setImageFiles, i)}><X size={14}/></button>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
-          <button className="btn-primary" onClick={handleImageToPdf}>
-            <Download size={16} /> Gerar PDF
-          </button>
+
+          <motion.button whileTap={{ scale: 0.95 }} className="btn-primary" onClick={handleImageToPdf} disabled={imageFiles.length === 0}>
+            <CheckSquare size={16} /> Gerar PDF
+          </motion.button>
         </motion.div>
       )}
 
       {/* ── Texto → PDF ── */}
       {activeTab === 'text' && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card">
-          <h3 style={{ marginBottom: '0.75rem', color: 'var(--text-primary)' }}>Criar Documento PDF a partir de Texto</h3>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
-            Digite declarações escolares, comunicados ou qualquer texto e salve diretamente em PDF.
-          </p>
+          <h3 style={{ marginBottom: '0.75rem', color: 'var(--text-primary)' }}>Gerar PDF de Texto</h3>
           <div style={{ marginBottom: '0.75rem' }}>
             <label>Título do Documento</label>
-            <input className="form-input" value={docTitle} onChange={e => setDocTitle(e.target.value)} placeholder="Ex: Declaração de Matrícula" />
+            <input
+              className="form-input"
+              value={docTitle}
+              onChange={e => setDocTitle(e.target.value)}
+              placeholder="Ex: Ata de Reunião"
+            />
           </div>
           <div style={{ marginBottom: '0.75rem' }}>
             <label>Conteúdo</label>
             <textarea
               className="form-input"
-              rows={10}
+              style={{ height: '200px', resize: 'vertical' }}
               value={docText}
               onChange={e => setDocText(e.target.value)}
               placeholder="Digite o conteúdo do documento aqui..."
             />
           </div>
-          <button className="btn-primary" onClick={handleTextToPdf}>
+          <motion.button whileTap={{ scale: 0.95 }} className="btn-primary" onClick={handleTextToPdf}>
             <Download size={16} /> Gerar PDF
-          </button>
+          </motion.button>
         </motion.div>
       )}
 
@@ -252,99 +296,100 @@ const PDFHub = () => {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card">
           <h3 style={{ marginBottom: '0.75rem', color: 'var(--text-primary)' }}>Mesclar Múltiplos PDFs</h3>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
-            Selecione vários arquivos PDF e combine-os em um único documento organizado.
+            Adicione vários PDFs, mude a ordem de cada um, e gere um documento final.
           </p>
+          
           <div style={{ marginBottom: '0.75rem' }}>
             <label>Nome do Documento Final</label>
             <input className="form-input" value={mergeDocName} onChange={e => setMergeDocName(e.target.value)} placeholder="Ex: Prontuário Completo - Maria" />
           </div>
-          <input
-            type="file"
-            accept="application/pdf"
-            multiple
-            onChange={e => setPdfFiles(Array.from(e.target.files))}
-            style={{ marginBottom: '0.75rem', color: 'var(--text-secondary)' }}
-          />
+
+          <div style={{ marginBottom: '1rem' }}>
+            <label htmlFor="pdf-upload" className="btn-secondary" style={{ display: 'inline-flex', cursor: 'pointer' }}>
+              <Plus size={16} /> Adicionar PDFs
+            </label>
+            <input
+              id="pdf-upload"
+              type="file"
+              accept="application/pdf"
+              multiple
+              onChange={e => setPdfFiles(prev => [...prev, ...Array.from(e.target.files)])}
+              style={{ display: 'none' }}
+            />
+          </div>
+
           {pdfFiles.length > 0 && (
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
-              {pdfFiles.length} PDF(s) selecionado(s): {pdfFiles.map(f => f.name).join(', ')}
-            </p>
+            <div style={{ marginBottom: '1rem', background: 'rgba(255,255,255,0.02)', padding: '0.5rem', borderRadius: 8 }}>
+              <h4 style={{ fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>{pdfFiles.length} PDF(s) na fila:</h4>
+              {pdfFiles.map((f, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.4rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{i + 1}. {f.name}</span>
+                  <div style={{ display: 'flex', gap: '0.25rem' }}>
+                    <button type="button" className="btn-secondary" style={{ padding: '0.2rem' }} onClick={() => moveUp(pdfFiles, setPdfFiles, i)} disabled={i === 0}><ArrowUp size={14}/></button>
+                    <button type="button" className="btn-secondary" style={{ padding: '0.2rem' }} onClick={() => moveDown(pdfFiles, setPdfFiles, i)} disabled={i === pdfFiles.length - 1}><ArrowDown size={14}/></button>
+                    <button type="button" className="btn-danger" style={{ padding: '0.2rem' }} onClick={() => removeFile(pdfFiles, setPdfFiles, i)}><X size={14}/></button>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
-          <button className="btn-primary" onClick={handleMerge}>
-            <Combine size={16} /> Mesclar PDFs
-          </button>
+
+          <motion.button whileTap={{ scale: 0.95 }} className="btn-primary" onClick={handleMerge} disabled={pdfFiles.length < 2}>
+            <Combine size={16} /> Mesclar e Baixar
+          </motion.button>
         </motion.div>
       )}
 
       {/* ── Histórico ── */}
       {activeTab === 'history' && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card">
+          <h3 style={{ marginBottom: '0.75rem', color: 'var(--text-primary)' }}>Histórico de Documentos Gerados</h3>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+            Os PDFs gerados recentemente ficam salvos no banco de dados para download.
+          </p>
           {history.length === 0 ? (
-            <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-              <History size={48} style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }} />
-              <p style={{ color: 'var(--text-secondary)' }}>Nenhum PDF gerado ainda. Use as ferramentas acima para criar seu primeiro documento.</p>
-            </div>
+            <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '2rem' }}>Nenhum documento gerado ainda.</p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <AnimatePresence>
-                {history.map((item, idx) => (
-                  <motion.div
-                    key={item._id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    transition={{ delay: idx * 0.05 }}
-                    className="card"
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.5rem' }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: 0 }}>
-                      <div style={{
-                        width: 44, height: 44, borderRadius: '12px',
-                        background: 'rgba(59, 130, 246, 0.15)',
-                        border: '1px solid rgba(59, 130, 246, 0.3)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        flexShrink: 0
-                      }}>
-                        <FileText size={20} style={{ color: '#3b82f6' }} />
-                      </div>
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {item.filename}
-                        </div>
-                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginTop: '0.25rem', flexWrap: 'wrap' }}>
-                          <span className="badge badge-blue">{TOOL_LABELS[item.tool] || item.tool}</span>
-                          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <Clock size={12} /> {formatDate(item.createdAt)}
-                          </span>
-                          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                            {formatSize(item.sizeBytes)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0, marginLeft: '1rem' }}>
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="btn-primary"
-                        style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
-                        onClick={() => handleRedownload(item)}
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', textAlign: 'left', color: 'var(--text-secondary)' }}>
+                    <th style={{ padding: '0.5rem' }}>Arquivo</th>
+                    <th style={{ padding: '0.5rem' }}>Operação</th>
+                    <th style={{ padding: '0.5rem' }}>Tamanho</th>
+                    <th style={{ padding: '0.5rem' }}>Data</th>
+                    <th style={{ padding: '0.5rem' }}>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <AnimatePresence>
+                    {history.map(item => (
+                      <motion.tr 
+                        key={item._id} 
+                        initial={{ opacity: 0 }} 
+                        animate={{ opacity: 1 }} 
+                        exit={{ opacity: 0 }}
+                        style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
                       >
-                        <Download size={14} /> Baixar
-                      </motion.button>
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="btn-danger"
-                        style={{ padding: '0.5rem 0.75rem', fontSize: '0.85rem' }}
-                        onClick={() => handleDeleteHistory(item)}
-                      >
-                        <Trash2 size={14} />
-                      </motion.button>
-                    </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+                        <td style={{ padding: '0.5rem', fontWeight: 600, color: 'var(--text-primary)' }}>{item.filename}</td>
+                        <td style={{ padding: '0.5rem', color: 'var(--text-secondary)' }}>
+                          {item.tool === 'imagem_para_pdf' ? 'Imagens' : item.tool === 'texto_para_pdf' ? 'Texto' : 'Merge'}
+                        </td>
+                        <td style={{ padding: '0.5rem', color: 'var(--text-secondary)' }}>{formatSize(item.sizeBytes)}</td>
+                        <td style={{ padding: '0.5rem', color: 'var(--text-secondary)' }}>{formatDate(item.createdAt)}</td>
+                        <td style={{ padding: '0.5rem', display: 'flex', gap: '0.5rem' }}>
+                          <motion.button whileTap={{ scale: 0.9 }} className="btn-primary" style={{ padding: '0.3rem 0.5rem' }} onClick={() => handleRedownload(item)}>
+                            <Download size={14} />
+                          </motion.button>
+                          <motion.button whileTap={{ scale: 0.9 }} className="btn-danger" style={{ padding: '0.3rem 0.5rem' }} onClick={() => handleDeleteHistory(item)}>
+                            <Trash2 size={14} />
+                          </motion.button>
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </AnimatePresence>
+                </tbody>
+              </table>
             </div>
           )}
         </motion.div>
