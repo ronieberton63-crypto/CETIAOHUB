@@ -1,6 +1,6 @@
 {
   "name": "cetiao-hub",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "CETIAO Hub - Gestão Escolar e Documental (offline-first desktop app)",
   "main": "main.cjs",
   "scripts": {
