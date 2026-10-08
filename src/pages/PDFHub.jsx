@@ -18,6 +18,7 @@ const PDFHub = () => {
 
   // ── Image to PDF state ──
   const [imageFiles, setImageFiles] = useState([]);
+  const [imageDocName, setImageDocName] = useState('');
 
   // ── Text to PDF state ──
   const [docTitle, setDocTitle] = useState('');
@@ -25,6 +26,7 @@ const PDFHub = () => {
 
   // ── Merge state ──
   const [pdfFiles, setPdfFiles] = useState([]);
+  const [mergeDocName, setMergeDocName] = useState('');
 
   // ── History state ──
   const [history, setHistory] = useState([]);
@@ -107,11 +109,13 @@ const PDFHub = () => {
     try {
       toast.info('Gerando PDF...');
       const blob = await imagesToPdf(imageFiles);
-      const filename = `imagens-${Date.now()}.pdf`;
+      const baseName = imageDocName.trim() || `imagens-${Date.now()}`;
+      const filename = baseName.replace(/[^a-zA-Z0-9À-ÿ\s\-_]/g, '') + '.pdf';
       downloadBlob(blob, filename);
       await savePdfToHistory(blob, filename, 'imagem_para_pdf');
       toast.success('PDF gerado com sucesso!');
       setImageFiles([]);
+      setImageDocName('');
     } catch (err) {
       console.error(err);
       toast.error('Erro ao gerar PDF');
@@ -139,11 +143,13 @@ const PDFHub = () => {
     try {
       toast.info('Mesclando PDFs...');
       const blob = await mergePdfs(pdfFiles);
-      const filename = `mesclado-${Date.now()}.pdf`;
+      const baseName = mergeDocName.trim() || `mesclado-${Date.now()}`;
+      const filename = baseName.replace(/[^a-zA-Z0-9À-ÿ\s\-_]/g, '') + '.pdf';
       downloadBlob(blob, filename);
       await savePdfToHistory(blob, filename, 'merge_pdf');
       toast.success('PDFs mesclados com sucesso!');
       setPdfFiles([]);
+      setMergeDocName('');
     } catch (err) {
       console.error(err);
       toast.error('Erro ao mesclar PDFs');
@@ -192,6 +198,10 @@ const PDFHub = () => {
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
             Selecione fotos (JPG/PNG) de documentos de alunos e gere um PDF único.
           </p>
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label>Nome do Documento</label>
+            <input className="form-input" value={imageDocName} onChange={e => setImageDocName(e.target.value)} placeholder="Ex: Documentos do Aluno João Silva" />
+          </div>
           <input
             type="file"
             accept="image/jpeg,image/png"
@@ -244,6 +254,10 @@ const PDFHub = () => {
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
             Selecione vários arquivos PDF e combine-os em um único documento organizado.
           </p>
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label>Nome do Documento Final</label>
+            <input className="form-input" value={mergeDocName} onChange={e => setMergeDocName(e.target.value)} placeholder="Ex: Prontuário Completo - Maria" />
+          </div>
           <input
             type="file"
             accept="application/pdf"
